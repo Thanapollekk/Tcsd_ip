@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>บันทึกข้อมูลด้วย Firebase บน GitHub Pages</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        input, button { padding: 10px; margin: 5px 0; font-size: 16px; }
+        #status { color: green; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>ระบบบันทึกข้อมูล (ไม่ต้องมี Backend)</h2>
+    <p>พิมพ์ข้อความที่คุณต้องการบันทึกลงในฐานข้อมูล:</p>
+    
+    <input type="text" id="dataInput" placeholder="พิมพ์ข้อความที่นี่...">
+    <button id="saveBtn">บันทึกข้อมูล</button>
+    <p id="status"></p>
+
+    <!-- นำเข้า Firebase SDK จาก CDN (ไม่ต้องติดตั้งผ่าน npm ก็ใช้งานได้) -->
+    <script type="module">
+        // นำเข้าฟังก์ชันที่จำเป็นจาก Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
+
+        // ⚠️ ขั้นตอนที่ 1: นำ Firebase Config ของคุณมาใส่ที่ตัวแปรนี้
+        // (ดูวิธีเอาค่า Config ในคำแนะนำด้านล่าง)
+ const firebaseConfig = {
+  apiKey: "AIzaSyAv7q5JRh_VnsKNqEDBl-60KruafC7fGfw",
+  authDomain: "app-ip-line.firebaseapp.com",
+  projectId: "app-ip-line",
+  storageBucket: "app-ip-line.firebasestorage.app",
+  messagingSenderId: "697728554662",
+  appId: "1:697728554662:web:73b67252752e97051c4667",
+  measurementId: "G-9YQ4CMNEW1"
+
+
+};
+
+        // เริ่มต้นเชื่อมต่อแอปพลิเคชันของเรากับ Firebase
+        const app = initializeApp(firebaseConfig);
+        // เรียกใช้ฐานข้อมูล Firestore
+        const db = getFirestore(app);
+
+        // ขั้นตอนที่ 2: สร้างฟังก์ชันสำหรับบันทึกข้อมูลเมื่อผู้ใช้กดปุ่ม
+        document.getElementById("saveBtn").addEventListener("click", async () => {
+            const inputVal = document.getElementById("dataInput").value;
+            const statusText = document.getElementById("status");
+
+            // ตรวจสอบว่าผู้ใช้พิมพ์ข้อมูลหรือยัง
+            if(!inputVal) {
+                statusText.style.color = "red";
+                statusText.innerText = "กรุณาพิมพ์ข้อมูลก่อนบันทึกเจี๊ยก!";
+                return;
+            }
+
+            try {
+                statusText.style.color = "blue";
+                statusText.innerText = "กำลังบันทึกข้อมูล...";
+
+                // คำสั่งบันทึกข้อมูลลง Firestore ในคอลเล็กชันชื่อ "my_messages"
+                const docRef = await addDoc(collection(db, "my_messages"), {
+                    message: inputVal,
+                    timestamp: new Date() // เก็บเวลาที่บันทึกด้วย
+                });
+
+                statusText.style.color = "green";
+                statusText.innerText = `บันทึกสำเร็จ! (ID อ้างอิง: ${docRef.id})`;
+                document.getElementById("dataInput").value = ''; // ล้างช่องกรอกข้อความ
+
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาด: ", error);
+                statusText.style.color = "red";
+                statusText.innerText = "เกิดข้อผิดพลาดในการบันทึก กรุณาตรวจสอบ Console";
+            }
+        });
+    </script>
+</body>
+</html>
