@@ -3,85 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>บันทึกข้อมูลด้วย Firebase บน GitHub Pages</title>
+    <title>บันทึกข้อมูลผู้ใช้ด้วย Firebase บน GitHub Pages</title>
     <style>
         body { font-family: sans-serif; padding: 20px; }
-        input, button { padding: 10px; margin: 5px 0; font-size: 16px; }
-        #status { color: green; font-weight: bold; }
+        button { padding: 10px 20px; margin: 5px 0; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; }
+        button:hover { background-color: #45a049; }
+        #status { color: green; font-weight: bold; margin-top: 15px; }
+        .data-box { margin-top: 20px; padding: 15px; background-color: #f4f4f9; border-left: 4px solid #2196F3; display: none; }
     </style>
 </head>
 <body>
-    <h2>ระบบบันทึกข้อมูล (ไม่ต้องมี Backend)</h2>
-    <p>พิมพ์ข้อความที่คุณต้องการบันทึกลงในฐานข้อมูล:</p>
+    <h2>ระบบตรวจสอบและบันทึกข้อมูลผู้ใช้</h2>
+    <p>กดปุ่มด้านล่างเพื่อตรวจสอบข้อมูลเครื่องของคุณและบันทึกลงฐานข้อมูล</p>
     
-    <input type="text" id="dataInput" placeholder="พิมพ์ข้อความที่นี่...">
-    <button id="saveBtn">บันทึกข้อมูล</button>
+    <button id="trackBtn">ดึงข้อมูลและบันทึก</button>
     <p id="status"></p>
 
-    <!-- นำเข้า Firebase SDK จาก CDN (ไม่ต้องติดตั้งผ่าน npm ก็ใช้งานได้) -->
+    <!-- กล่องสำหรับแสดงข้อมูลที่ดึงมาได้ -->
+    <div id="resultBox" class="data-box"></div>
+
     <script type="module">
-        // นำเข้าฟังก์ชันที่จำเป็นจาก Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
 
-        // ⚠️ ขั้นตอนที่ 1: นำ Firebase Config ของคุณมาใส่ที่ตัวแปรนี้
-        // (ดูวิธีเอาค่า Config ในคำแนะนำด้านล่าง)
- const firebaseConfig = {
-  apiKey: "AIzaSyAv7q5JRh_VnsKNqEDBl-60KruafC7fGfw",
-  authDomain: "app-ip-line.firebaseapp.com",
-  projectId: "app-ip-line",
-  storageBucket: "app-ip-line.firebasestorage.app",
-  messagingSenderId: "697728554662",
-  appId: "1:697728554662:web:73b67252752e97051c4667",
-  measurementId: "G-9YQ4CMNEW1"
+        // Firebase Config ของคุณ
+        const firebaseConfig = {
+            apiKey: "AIzaSyAv7q5JRh_VnsKNqEDBl-60KruafC7fGfw",
+            authDomain: "app-ip-line.firebaseapp.com",
+            projectId: "app-ip-line",
+            storageBucket: "app-ip-line.firebasestorage.app",
+            messagingSenderId: "697728554662",
+            appId: "1:697728554662:web:73b67252752e97051c4667",
+            measurementId: "G-9YQ4CMNEW1"
+        };
 
-
-};
-
-        // เริ่มต้นเชื่อมต่อแอปพลิเคชันของเรากับ Firebase
+        // เริ่มต้นเชื่อมต่อแอปพลิเคชัน
         const app = initializeApp(firebaseConfig);
-        // เรียกใช้ฐานข้อมูล Firestore
         const db = getFirestore(app);
 
-        // ขั้นตอนที่ 2: สร้างฟังก์ชันสำหรับบันทึกข้อมูลเมื่อผู้ใช้กดปุ่ม
-        document.getElementById("saveBtn").addEventListener("click", async () => {
-            const inputVal = document.getElementById("dataInput").value;
-            const statusText = document.getElementById("status");
-
-            // ตรวจสอบว่าผู้ใช้พิมพ์ข้อมูลหรือยัง
-            if(!inputVal) {
-                statusText.style.color = "red";
-                statusText.innerText = "กรุณาพิมพ์ข้อมูลก่อนบันทึกเจี๊ยก!";
-                return;
+        // ฟังก์ชันดึงค่า IP Address จาก API ภายนอก
+        async function fetchIPAddress() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                return data.ip;
+            } catch (error) {
+                console.error("ดึง IP ไม่สำเร็จ: ", error);
+                return "ไม่สามารถตรวจสอบ IP ได้";
             }
+        }
+
+        // เมื่อกดปุ่ม ให้เริ่มทำงาน
+        document.getElementById("trackBtn").addEventListener("click", async () => {
+            const statusText = document.getElementById("status");
+            const resultBox = document.getElementById("resultBox");
+
+            statusText.style.color = "blue";
+            statusText.innerText = "กำลังดึงข้อมูลและบันทึกลง Firestore...";
+            resultBox.style.display = "none";
 
             try {
-                statusText.style.color = "blue";
-                statusText.innerText = "กำลังบันทึกข้อมูล...";
+                // 1. ตรวจสอบ IP Address
+                const ipAddress = await fetchIPAddress();
 
-                // คำสั่งบันทึกข้อมูลลง Firestore ในคอลเล็กชันชื่อ "my_messages"
-                const docRef = await addDoc(collection(db, "my_messages"), {
-                    message: inputVal,
-                    timestamp: new Date() // เก็บเวลาที่บันทึกด้วย
-                });
+                // 2. ตรวจสอบ ระบบปฏิบัติการ Version ข้อมูลสถานะเครื่อง ยี่ห้อรุ่น
+                // navigator.userAgent จะให้ข้อมูลสตริงที่บอกถึง OS, Browser และอุปกรณ์เบื้องต้น
+                const deviceInfo = navigator.userAgent;
 
+                // 3 & 4. ตรวจสอบเบอร์โทรศัพท์ และ ชื่อ account (ข้อจำกัดบนเว็บ)
+                const phoneNumber = "ไม่สามารถดึงได้ (Web Security ป้องกันการดึงเบอร์โทร)";
+                const accountName = "ไม่สามารถดึงได้ (ต้องมีการให้ผู้ใช้ Login)";
+
+                // รวบรวมข้อมูลทั้งหมดเป็น Object เพื่อเตรียมบันทึก
+                const userTrackingData = {
+                    ip_address: ipAddress,
+                    device_info: deviceInfo,
+                    phone_number: phoneNumber,
+                    account_name: accountName,
+                    timestamp: new Date()
+                };
+
+                // คำสั่งบันทึกข้อมูลลง Firestore ในคอลเล็กชันชื่อ "user_data_logs"
+                const docRef = await addDoc(collection(db, "user_data_logs"), userTrackingData);
+
+                // แจ้งเตือนเมื่อสำเร็จและแสดงข้อมูลบนหน้าเว็บ
                 statusText.style.color = "green";
-                statusText.innerText = `บันทึกสำเร็จ! (ID อ้างอิง: ${docRef.id})`;
-                document.getElementById("dataInput").value = ''; // ล้างช่องกรอกข้อความ
+                statusText.innerText = `บันทึกสำเร็จ! (Document ID: ${docRef.id})`;
+                
+                resultBox.style.display = "block";
+                resultBox.innerHTML = `
+                    <strong>ข้อมูลที่ถูกบันทึก:</strong><br><br>
+                    <b>IP Address:</b> ${userTrackingData.ip_address}<br>
+                    <b>Device Info:</b> ${userTrackingData.device_info}<br>
+                    <b>Phone Number:</b> ${userTrackingData.phone_number}<br>
+                    <b>Account:</b> ${userTrackingData.account_name}
+                `;
 
             } catch (error) {
                 console.error("เกิดข้อผิดพลาด: ", error);
                 statusText.style.color = "red";
-                statusText.innerText = "เกิดข้อผิดพลาดในการบันทึก กรุณาตรวจสอบ Console";
+                statusText.innerText = "เกิดข้อผิดพลาดในการบันทึก กรุณาเปิด Console เพื่อดูรายละเอียดเพิ่มเติม";
             }
         });
     </script>
 </body>
 </html>
-
- เอา API บันทึกข้อมูลออกและ ใส่ JavaScript ให้ทำงานดังนี้ 
-1.ตรวจสอบ IP address ของผู้ใช้
-2.ตรวจสอบ ระบบปฏิบัติการ version ข้อมูลสถานะเครื่อง ยี่ห้อรุ่น
-3.ตรวจสอบ เบอร์โทรศัพท์ ที่เครื่องนั้นใช้อยู่
-4.ตรวจสอบชื่อ account
- และบันทึกลงใน Firestore Database
