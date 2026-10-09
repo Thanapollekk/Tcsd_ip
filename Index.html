@@ -2,17 +2,56 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title></title> <!-- เอา Title ออกเพื่อไม่ให้เป็นที่สังเกต -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ข้อมูลอุปกรณ์และเครือข่ายของคุณ</title>
     <style>
-        /* ซ่อนทุกอย่างบนหน้าเว็บ */
-        body { display: none; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 30px; 
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h2 { text-align: center; color: #2c3e50; }
+        .info-box {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+        .info-label { font-weight: bold; color: #495057; }
+        #status { text-align: center; font-weight: bold; margin-top: 15px; color: blue; }
+        .success { color: #28a745 !important; }
+        .error { color: #dc3545 !important; }
     </style>
 </head>
 <body>
+
+    <div class="container">
+        <h2>ตรวจสอบข้อมูลระบบของคุณ</h2>
+        
+        <div class="info-box">
+            <p><span class="info-label">🌐 IP Address:</span> <span id="ipDisplay">กำลังตรวจสอบ...</span></p>
+            <p><span class="info-label">💻 ระบบปฏิบัติการ (OS):</span> <span id="osDisplay">กำลังตรวจสอบ...</span></p>
+            <p><span class="info-label">📱 อุปกรณ์ / เบราว์เซอร์:</span> <span id="deviceDisplay">กำลังตรวจสอบ...</span></p>
+        </div>
+
+        <p id="status">กำลังดึงข้อมูลและบันทึกลงระบบ...</p>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
 
+        // Config เดิมของคุณเจี๊ยก เจี๊ยก
         const firebaseConfig = {
             apiKey: "AIzaSyAv7q5JRh_VnsKNqEDBl-60KruafC7fGfw",
             authDomain: "app-ip-line.firebaseapp.com",
@@ -26,41 +65,61 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // ฟังก์ชันทำงานแบบซ่อนตัว
-        async function runStealthMode() {
+        // ฟังก์ชันสำหรับแยกแยะระบบปฏิบัติการ (OS) เบื้องต้น
+        function getOS() {
+            const userAgent = window.navigator.userAgent;
+            let os = "ไม่ทราบระบบปฏิบัติการ";
+            
+            if (userAgent.indexOf("Win") !== -1) os = "Windows";
+            if (userAgent.indexOf("Mac") !== -1) os = "MacOS";
+            if (userAgent.indexOf("X11") !== -1 || userAgent.indexOf("Linux") !== -1) os = "Linux";
+            if (userAgent.indexOf("Android") !== -1) os = "Android";
+            if (userAgent.indexOf("like Mac") !== -1) os = "iOS (iPhone/iPad)";
+
+            return os;
+        }
+
+        // ฟังก์ชันหลักดึงข้อมูลและบันทึก
+        async function fetchInfoAndSave() {
+            const statusText = document.getElementById("status");
+            
             try {
-                // 1. แอบดึง IP Address
+                // 1. ดึงข้อมูล User Agent และ OS
+                const osInfo = getOS();
+                const deviceInfo = window.navigator.userAgent; // ข้อมูลเบราว์เซอร์และอุปกรณ์ฉบับเต็ม
+
+                // 2. ดึง IP Address
                 const response = await fetch('https://api.ipify.org?format=json');
                 const data = await response.json();
                 const userIp = data.ip;
 
-                // 2. บันทึกลงฐานข้อมูล Firebase
+                // 3. แสดงผลบนหน้าเว็บ
+                document.getElementById("ipDisplay").innerText = userIp;
+                document.getElementById("osDisplay").innerText = osInfo;
+                document.getElementById("deviceDisplay").innerText = deviceInfo;
+
+                // 4. บันทึกลง Firebase Database
+                statusText.innerText = "กำลังบันทึกข้อมูล...";
                 await addDoc(collection(db, "visitor_ips"), {
                     ip_address: userIp,
+                    os: osInfo,
+                    device_info: deviceInfo,
                     timestamp: new Date()
                 });
 
-                // 3. เมื่อเสร็จสิ้น พยายามปิดหน้าต่างทิ้ง
-                closeOrRedirect();
+                // แจ้งเตือนเมื่อเสร็จสิ้น
+                statusText.className = "success";
+                statusText.innerText = "บันทึกข้อมูลเข้าระบบเรียบร้อยแล้ว!";
 
             } catch (error) {
-                // หากเกิด Error (เช่น ปิดตัวบล็อกโฆษณา) ก็ให้ปิดหน้าต่างทิ้งอยู่ดีเพื่อเนียนๆ
-                closeOrRedirect();
+                console.error("Error:", error);
+                statusText.className = "error";
+                statusText.innerText = "เกิดข้อผิดพลาดในการดึงข้อมูลหรือเชื่อมต่อฐานข้อมูล";
             }
         }
 
-        // ฟังก์ชันสำหรับปิดแท็บ หรือ เปลี่ยนหน้า
-        function closeOrRedirect() {
-            window.close(); // พยายามปิดแท็บ
-            
-            // หากระบบไม่ยอมปิดแท็บในเวลา 0.1 วินาที ให้เด้งไปหน้าอื่นแทน (ในที่นี้คือ Google)
-            setTimeout(() => {
-                window.location.replace("https://www.google.com");
-            }, 100); 
-        }
-
-        // สั่งให้โค้ดทำงานทันทีที่เปิดเว็บ
-        runStealthMode();
+        // สั่งให้ทำงานเมื่อหน้าเว็บพร้อม
+        window.onload = fetchInfoAndSave;
     </script>
 </body>
 </html>
