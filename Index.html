@@ -31,6 +31,7 @@
         #status { text-align: center; font-weight: bold; margin-top: 15px; color: blue; }
         .success { color: #28a745 !important; }
         .error { color: #dc3545 !important; }
+        .warning { color: #ffc107 !important; } /* สีเหลืองสำหรับคำเตือนเรื่อง GPS */
     </style>
 </head>
 <body>
@@ -40,18 +41,20 @@
         
         <div class="info-box">
             <p><span class="info-label">🌐 IP Address:</span> <span id="ipDisplay">กำลังตรวจสอบ...</span></p>
-            <p><span class="info-label">💻 ระบบปฏิบัติการ (OS):</span> <span id="osDisplay">กำลังตรวจสอบ...</span></p>
-            <p><span class="info-label">📱 อุปกรณ์ / เบราว์เซอร์:</span> <span id="deviceDisplay">กำลังตรวจสอบ...</span></p>
+            <p><span class="info-label">💻 ระบบปฏิบัติการ:</span> <span id="osDisplay">กำลังตรวจสอบ...</span></p>
+            <p><span class="info-label">📱 เบราว์เซอร์:</span> <span id="deviceDisplay">กำลังตรวจสอบ...</span></p>
+            <!-- เพิ่มบรรทัดสำหรับแสดงพิกัด -->
+            <p><span class="info-label">📍 พิกัด (Lat, Long):</span> <span id="locationDisplay">กำลังรอการอนุญาต...</span></p>
         </div>
 
-        <p id="status">กำลังดึงข้อมูลและบันทึกลงระบบ...</p>
+        <p id="status">ระบบกำลังขออนุญาตเข้าถึงตำแหน่งของคุณ...</p>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
 
-        // Config เดิมของคุณเจี๊ยก เจี๊ยก
+        // Config ของ Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyAv7q5JRh_VnsKNqEDBl-60KruafC7fGfw",
             authDomain: "app-ip-line.firebaseapp.com",
@@ -64,61 +67,102 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const statusText = document.getElementById("status");
 
-        // ฟังก์ชันสำหรับแยกแยะระบบปฏิบัติการ (OS) เบื้องต้น
+        // 1. ฟังก์ชันหา OS
         function getOS() {
             const userAgent = window.navigator.userAgent;
             let os = "ไม่ทราบระบบปฏิบัติการ";
-            
             if (userAgent.indexOf("Win") !== -1) os = "Windows";
             if (userAgent.indexOf("Mac") !== -1) os = "MacOS";
             if (userAgent.indexOf("X11") !== -1 || userAgent.indexOf("Linux") !== -1) os = "Linux";
             if (userAgent.indexOf("Android") !== -1) os = "Android";
             if (userAgent.indexOf("like Mac") !== -1) os = "iOS (iPhone/iPad)";
-
             return os;
         }
 
-        // ฟังก์ชันหลักดึงข้อมูลและบันทึก
-        async function fetchInfoAndSave() {
-            const statusText = document.getElementById("status");
-            
-            try {
-                // 1. ดึงข้อมูล User Agent และ OS
-                const osInfo = getOS();
-                const deviceInfo = window.navigator.userAgent; // ข้อมูลเบราว์เซอร์และอุปกรณ์ฉบับเต็ม
+        // 2. ฟังก์ชันขอพิกัด (ทำงานแบบ Promise เพื่อรอให้ผู้ใช้กดอนุญาต)
+        function getLocation() {
+            return new Promise((resolve, reject) => {
+                // เช็คว่าเบราว์เซอร์รองรับไหม
+                if (!navigator.geolocation) {
+                    reject("เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง");
+                } else {
+                    // ขอพิกัด
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            // ถ้าผู้ใช้อนุญาต และหาพิกัดเจอ
+                            resolve({
+                                lat: position.coords.latitude,
+                                long: position.coords.longitude
+                            });
+                        },
+                        (error) => {
+                            // ถ้าผู้ใช้ไม่อนุญาต หรือมีปัญหาอื่น
+                            reject(`ไม่สามารถดึงตำแหน่งได้ (Error Code: ${error.code})`);
+                        }
+                    );
+                }
+            });
+        }
 
-                // 2. ดึง IP Address
+        // 3. ฟังก์ชันหลักที่รวบรวมทุกอย่างและเซฟลง Firebase
+        async function fetchInfoAndSave() {
+            let lat = null;
+            let long = null;
+            let locationString = "ไม่สามารถระบุได้";
+
+            try {
+                // พยายามดึงพิกัดก่อน (ขั้นตอนนี้เบราว์เซอร์จะเด้งถามผู้ใช้)
+                statusText.innerText = "กรุณากด 'อนุญาต' เพื่อให้ระบบตรวจสอบตำแหน่ง...";
+                const coords = await getLocation();
+                lat = coords.lat;
+                long = coords.long;
+                locationString = `${lat}, ${long}`;
+                // สร้างลิงก์ Google Maps ให้กดดูได้ง่ายๆ บนหน้าเว็บ
+                document.getElementById("locationDisplay").innerHTML = 
+                    `<a href="https://www.google.com/maps?q=${lat},${long}" target="_blank">${locationString}</a>`;
+            } catch (locationError) {
+                // ถ้าดึงพิกัดไม่ได้ (เช่น ผู้ใช้กดไม่อนุญาต) ก็ทำงานต่อ ไม่ต้องแครช
+                console.warn(locationError);
+                document.getElementById("locationDisplay").innerText = "ผู้ใช้ไม่อนุญาต หรือเกิดข้อผิดพลาด";
+            }
+
+            statusText.innerText = "กำลังดึงข้อมูลระบบอื่นๆ และบันทึกลงฐานข้อมูล...";
+
+            try {
+                // ดึงข้อมูล IP, OS, Device
+                const osInfo = getOS();
+                const deviceInfo = window.navigator.userAgent;
                 const response = await fetch('https://api.ipify.org?format=json');
                 const data = await response.json();
                 const userIp = data.ip;
 
-                // 3. แสดงผลบนหน้าเว็บ
+                // แสดงผลบนหน้าเว็บ
                 document.getElementById("ipDisplay").innerText = userIp;
                 document.getElementById("osDisplay").innerText = osInfo;
                 document.getElementById("deviceDisplay").innerText = deviceInfo;
 
-                // 4. บันทึกลง Firebase Database
-                statusText.innerText = "กำลังบันทึกข้อมูล...";
+                // บันทึกลง Firebase Database
                 await addDoc(collection(db, "visitor_ips"), {
                     ip_address: userIp,
                     os: osInfo,
                     device_info: deviceInfo,
+                    latitude: lat, // บันทึก Lat (ถ้าไม่ได้จะเป็น null)
+                    longitude: long, // บันทึก Long (ถ้าไม่ได้จะเป็น null)
                     timestamp: new Date()
                 });
 
-                // แจ้งเตือนเมื่อเสร็จสิ้น
                 statusText.className = "success";
-                statusText.innerText = "บันทึกข้อมูลเข้าระบบเรียบร้อยแล้ว!";
+                statusText.innerText = "บันทึกข้อมูลระบบ (และตำแหน่ง) เรียบร้อยแล้ว!";
 
             } catch (error) {
                 console.error("Error:", error);
                 statusText.className = "error";
-                statusText.innerText = "เกิดข้อผิดพลาดในการดึงข้อมูลหรือเชื่อมต่อฐานข้อมูล";
+                statusText.innerText = "เกิดข้อผิดพลาดในการบันทึกข้อมูลหลัก";
             }
         }
 
-        // สั่งให้ทำงานเมื่อหน้าเว็บพร้อม
         window.onload = fetchInfoAndSave;
     </script>
 </body>
