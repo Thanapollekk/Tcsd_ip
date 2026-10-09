@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบันทึกข้อมูล (Google Auth - รองรับมือถือ)</title>
+    <title>ระบบบันทึกข้อมูล (Debug Mode)</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background-color: #f0f2f5; text-align: center;}
         .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
@@ -11,6 +11,9 @@
         .google-btn:hover { background-color: #357ae8; }
         #status { font-weight: bold; font-size: 16px; color: #333; margin-top: 20px; }
         #resultBox { display: none; margin-top: 20px; text-align: left; background: #e8f5e9; padding: 15px; border-radius: 4px; border-left: 4px solid #4CAF50;}
+        
+        /* กล่องแสดงสถานะการทำงาน (Debug) */
+        #debugScreen { background-color: #222; color: #0f0; padding: 15px; margin-top: 20px; text-align: left; font-size: 12px; border-radius: 5px; font-family: monospace; overflow-wrap: break-word; }
     </style>
 </head>
 <body>
@@ -22,6 +25,11 @@
         
         <p id="status"></p>
         <div id="resultBox"></div>
+        
+        <!-- กล่องตรวจสอบข้อผิดพลาด -->
+        <div id="debugScreen">
+            <b>Console Log (ระบบตรวจสอบ):</b><br>
+        </div>
     </div>
 
     <script type="module">
@@ -29,6 +37,14 @@
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
         import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-auth.js";
 
+        // ฟังก์ชันพิมพ์สถานะลงหน้าจอ
+        const debugScreen = document.getElementById("debugScreen");
+        function logMsg(msg, isError = false) {
+            const color = isError ? "red" : "#0f0";
+            debugScreen.innerHTML += `<span style="color: ${color}">> ${msg}</span><br>`;
+        }
+
+        logMsg("1. เริ่มโหลด Firebase Config...");
         const firebaseConfig = {
             apiKey: "AIzaSyAv7q5JRh_VnsKNqEDBl-60KruafC7fGfw",
             authDomain: "app-ip-line.firebaseapp.com",
@@ -43,6 +59,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
+        logMsg("2. เชื่อมต่อ Firebase สำเร็จ");
 
         const statusText = document.getElementById("status");
         const resultBox = document.getElementById("resultBox");
@@ -54,58 +71,67 @@
                 const data = await response.json();
                 return data.ip;
             } catch (error) {
+                logMsg("Error ดึง IP: " + error.message, true);
                 return "ไม่สามารถตรวจสอบ IP ได้";
             }
         }
 
+        logMsg("3. กำลังตรวจสอบผลการล็อกอิน (Redirect Result)...");
+        
         getRedirectResult(auth).then(async (result) => {
             if (result) {
+                logMsg("4. ล็อกอินสำเร็จ! พบข้อมูลผู้ใช้: " + result.user.email);
                 loginBtn.style.display = "none";
                 statusText.style.color = "blue";
-                statusText.innerText = "ยืนยันตัวตนสำเร็จ! กำลังรวบรวมข้อมูลเครื่อง... เจี๊ยก เจี๊ยก";
+                statusText.innerText = "กำลังรวบรวมข้อมูลเครื่อง... เจี๊ยก เจี๊ยก";
 
                 try {
-                    const user = result.user;
+                    logMsg("5. กำลังดึง IP Address...");
                     const ipAddress = await fetchIPAddress();
                     const deviceInfo = navigator.userAgent;
 
                     const userTrackingData = {
-                        account_name: user.displayName,
-                        email: user.email,
+                        account_name: result.user.displayName,
+                        email: result.user.email,
                         ip_address: ipAddress,
                         device_info: deviceInfo,
                         phone_number: "ดึงไม่ได้ผ่าน Google Sign-in ปกติ",
                         timestamp: new Date()
                     };
 
+                    logMsg("6. เตรียมส่งข้อมูลเข้า Firestore...");
                     const docRef = await addDoc(collection(db, "user_data_logs"), userTrackingData);
 
+                    logMsg("7. บันทึกข้อมูลสำเร็จ! ID: " + docRef.id);
                     statusText.style.color = "green";
                     statusText.innerText = "บันทึกข้อมูลเรียบร้อยแล้ว กัปตัน! เจี๊ยก เจี๊ยก";
                     
                     resultBox.style.display = "block";
                     resultBox.innerHTML = `
-                        <strong>สรุปข้อมูลที่ได้มา:</strong><br><br>
-                        <b>ชื่อบัญชี:</b> ${userTrackingData.account_name}<br>
-                        <b>อีเมล:</b> ${userTrackingData.email}<br>
-                        <b>IP Address:</b> ${userTrackingData.ip_address}<br>
-                        <b>Device Info:</b> ${userTrackingData.device_info}
+                        <strong>ข้อมูลที่บันทึก:</strong><br>
+                        <b>Email:</b> ${userTrackingData.email}<br>
+                        <b>IP:</b> ${userTrackingData.ip_address}
                     `;
                 } catch (error) {
-                    console.error("Firebase Error:", error);
+                    logMsg("Firestore Error: " + error.message, true);
                     statusText.style.color = "red";
-                    statusText.innerText = "เกิดข้อผิดพลาดในการบันทึก: " + error.message + " เจี๊ยก เจี๊ยก";
+                    statusText.innerText = "บันทึกลง Database ไม่สำเร็จ เจี๊ยก เจี๊ยก";
                 }
+            } else {
+                logMsg("4. สถานะ: รอผู้ใช้กดปุ่มล็อกอิน");
             }
         }).catch((error) => {
+            logMsg("Auth Error: " + error.message, true);
             statusText.style.color = "red";
-            statusText.innerText = "มีปัญหาการเชื่อมต่อบัญชี: " + error.message + " เจี๊ยก เจี๊ยก";
+            statusText.innerText = "มีปัญหาการเชื่อมต่อบัญชี เจี๊ยก เจี๊ยก";
         });
 
         loginBtn.addEventListener("click", () => {
+            logMsg("ผู้ใช้กดปุ่มเข้าสู่ระบบ Google...");
             statusText.style.color = "blue";
             statusText.innerText = "กำลังพาไปหน้าเข้าสู่ระบบ... เจี๊ยก เจี๊ยก";
             signInWithRedirect(auth, provider); 
         });
-
-        
+    </script>
+</body>
+</html>
