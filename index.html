@@ -27,8 +27,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
-        
-        // อัปเกรดมาใช้ signInWithRedirect และ getRedirectResult สำหรับมือถือ! เจี๊ยก เจี๊ยก
         import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -60,10 +58,8 @@
             }
         }
 
-        // 1. ตรวจสอบผลลัพธ์ทันทีที่หน้าเว็บโหลด (เผื่อว่าเพิ่งเด้งกลับมาจากการล็อกอิน Google)
         getRedirectResult(auth).then(async (result) => {
             if (result) {
-                // ล็อกอินสำเร็จแล้ว เจี๊ยก เจี๊ยก!
                 loginBtn.style.display = "none";
                 statusText.style.color = "blue";
                 statusText.innerText = "ยืนยันตัวตนสำเร็จ! กำลังรวบรวมข้อมูลเครื่อง... เจี๊ยก เจี๊ยก";
@@ -96,23 +92,20 @@
                         <b>Device Info:</b> ${userTrackingData.device_info}
                     `;
                 } catch (error) {
+                    console.error("Firebase Error:", error);
                     statusText.style.color = "red";
-                    statusText.innerText = "เกิดข้อผิดพลาดในการบันทึกข้อมูล เจี๊ยก เจี๊ยก";
+                    statusText.innerText = "เกิดข้อผิดพลาดในการบันทึก: " + error.message + " เจี๊ยก เจี๊ยก";
                 }
             }
         }).catch((error) => {
             statusText.style.color = "red";
-            statusText.innerText = "มีปัญหาการเชื่อมต่อบัญชี เจี๊ยก เจี๊ยก: " + error.message;
+            statusText.innerText = "มีปัญหาการเชื่อมต่อบัญชี: " + error.message + " เจี๊ยก เจี๊ยก";
         });
 
-        // 2. เมื่อกดปุ่ม ให้พาผู้ใช้สลับหน้าไปล็อกอิน Google
         loginBtn.addEventListener("click", () => {
             statusText.style.color = "blue";
             statusText.innerText = "กำลังพาไปหน้าเข้าสู่ระบบ... เจี๊ยก เจี๊ยก";
-            
-            // ใช้ Redirect แทน Popup เพื่อแก้ปัญหาบนเบราว์เซอร์มือถือ
             signInWithRedirect(auth, provider); 
         });
-    </script>
-</body>
-</html>
+
+        
