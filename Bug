@@ -1,0 +1,43 @@
+        // 2. ฟังก์ชันขอพิกัด GPS แม่นยำ (อัปเดตเพื่อตรวจสอบ Error)
+        function getExactGPS() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) {
+                    console.log("เบราว์เซอร์ไม่รองรับ Geolocation");
+                    resolve(null); 
+                } else {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            // สำเร็จ!
+                            resolve({ lat: position.coords.latitude, long: position.coords.longitude });
+                        },
+                        (error) => {
+                            // ตรวจสอบสาเหตุที่ไม่สำเร็จ
+                            switch(error.code) {
+                                case error.PERMISSION_DENIED:
+                                    console.warn("ผู้ใช้กด 'บล็อก' หรือเบราว์เซอร์ไม่อนุญาตอัตโนมัติ (อาจเพราะไม่ใช่ HTTPS)");
+                                    document.getElementById("gpsLocationDisplay").innerText = "คุณไม่อนุญาต หรือเว็บไซต์ไม่ได้รันบน HTTPS";
+                                    break;
+                                case error.POSITION_UNAVAILABLE:
+                                    console.warn("เบราว์เซอร์หาตำแหน่งไม่เจอ (อาจเพราะไม่มี GPS หรือเน็ตมีปัญหา)");
+                                    document.getElementById("gpsLocationDisplay").innerText = "สัญญาณ GPS/Network ไม่พร้อม";
+                                    break;
+                                case error.TIMEOUT:
+                                    console.warn("หมดเวลาค้นหาพิกัด");
+                                    document.getElementById("gpsLocationDisplay").innerText = "ค้นหาตำแหน่งนานเกินไป";
+                                    break;
+                                default:
+                                    console.warn("เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ");
+                                    break;
+                            }
+                            resolve(null); // คืนค่า null เพื่อให้โปรแกรมทำงานส่วนอื่นต่อได้
+                        },
+                        {
+                             // เพิ่ม Option เพื่อบังคับให้พยายามใช้ GPS แม่นยำ และรอสูงสุด 10 วินาที
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 0
+                        }
+                    );
+                }
+            });
+        }
