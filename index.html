@@ -3,48 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบันทึกข้อมูล (Debug Mode)</title>
+    <title>บันทึกข้อมูลผู้ใช้ด้วย Firebase บน GitHub Pages</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background-color: #f0f2f5; text-align: center;}
-        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
-        .google-btn { background-color: #4285F4; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
-        .google-btn:hover { background-color: #357ae8; }
-        #status { font-weight: bold; font-size: 16px; color: #333; margin-top: 20px; }
-        #resultBox { display: none; margin-top: 20px; text-align: left; background: #e8f5e9; padding: 15px; border-radius: 4px; border-left: 4px solid #4CAF50;}
-        
-        /* กล่องแสดงสถานะการทำงาน (Debug) */
-        #debugScreen { background-color: #222; color: #0f0; padding: 15px; margin-top: 20px; text-align: left; font-size: 12px; border-radius: 5px; font-family: monospace; overflow-wrap: break-word; }
+        body { font-family: sans-serif; padding: 20px; }
+        button { padding: 10px 20px; margin: 5px 0; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; }
+        button:hover { background-color: #45a049; }
+        #status { color: green; font-weight: bold; margin-top: 15px; }
+        .data-box { margin-top: 20px; padding: 15px; background-color: #f4f4f9; border-left: 4px solid #2196F3; display: none; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2>ระบบตรวจสอบและบันทึกข้อมูล</h2>
-        <p>เพื่อความปลอดภัย กรุณายืนยันตัวตนด้วยบัญชี Google เจี๊ยก เจี๊ยก</p>
-        
-        <button id="loginBtn" class="google-btn">เข้าสู่ระบบด้วย Google</button>
-        
-        <p id="status"></p>
-        <div id="resultBox"></div>
-        
-        <!-- กล่องตรวจสอบข้อผิดพลาด -->
-        <div id="debugScreen">
-            <b>Console Log (ระบบตรวจสอบ):</b><br>
-        </div>
-    </div>
+    <h2>ระบบตรวจสอบและบันทึกข้อมูลผู้ใช้</h2>
+    <p>กดปุ่มด้านล่างเพื่อตรวจสอบข้อมูลเครื่องของคุณและบันทึกลงฐานข้อมูล</p>
+    
+    <button id="trackBtn">ดึงข้อมูลและบันทึก</button>
+    <p id="status"></p>
+
+    <!-- กล่องสำหรับแสดงข้อมูลที่ดึงมาได้ -->
+    <div id="resultBox" class="data-box"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
-        import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-auth.js";
 
-        // ฟังก์ชันพิมพ์สถานะลงหน้าจอ
-        const debugScreen = document.getElementById("debugScreen");
-        function logMsg(msg, isError = false) {
-            const color = isError ? "red" : "#0f0";
-            debugScreen.innerHTML += `<span style="color: ${color}">> ${msg}</span><br>`;
-        }
-
-        logMsg("1. เริ่มโหลด Firebase Config...");
+        // Firebase Config ของคุณ
         const firebaseConfig = {
             apiKey: "AIzaSyAv7q5JRh_VnsKNqEDBl-60KruafC7fGfw",
             authDomain: "app-ip-line.firebaseapp.com",
@@ -55,82 +37,73 @@
             measurementId: "G-9YQ4CMNEW1"
         };
 
+        // เริ่มต้นเชื่อมต่อแอปพลิเคชัน
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
-        logMsg("2. เชื่อมต่อ Firebase สำเร็จ");
 
-        const statusText = document.getElementById("status");
-        const resultBox = document.getElementById("resultBox");
-        const loginBtn = document.getElementById("loginBtn");
-
+        // ฟังก์ชันดึงค่า IP Address จาก API ภายนอก
         async function fetchIPAddress() {
             try {
                 const response = await fetch('https://api.ipify.org?format=json');
                 const data = await response.json();
                 return data.ip;
             } catch (error) {
-                logMsg("Error ดึง IP: " + error.message, true);
+                console.error("ดึง IP ไม่สำเร็จ: ", error);
                 return "ไม่สามารถตรวจสอบ IP ได้";
             }
         }
 
-        logMsg("3. กำลังตรวจสอบผลการล็อกอิน (Redirect Result)...");
-        
-        getRedirectResult(auth).then(async (result) => {
-            if (result) {
-                logMsg("4. ล็อกอินสำเร็จ! พบข้อมูลผู้ใช้: " + result.user.email);
-                loginBtn.style.display = "none";
-                statusText.style.color = "blue";
-                statusText.innerText = "กำลังรวบรวมข้อมูลเครื่อง... เจี๊ยก เจี๊ยก";
+        // เมื่อกดปุ่ม ให้เริ่มทำงาน
+        document.getElementById("trackBtn").addEventListener("click", async () => {
+            const statusText = document.getElementById("status");
+            const resultBox = document.getElementById("resultBox");
 
-                try {
-                    logMsg("5. กำลังดึง IP Address...");
-                    const ipAddress = await fetchIPAddress();
-                    const deviceInfo = navigator.userAgent;
-
-                    const userTrackingData = {
-                        account_name: result.user.displayName,
-                        email: result.user.email,
-                        ip_address: ipAddress,
-                        device_info: deviceInfo,
-                        phone_number: "ดึงไม่ได้ผ่าน Google Sign-in ปกติ",
-                        timestamp: new Date()
-                    };
-
-                    logMsg("6. เตรียมส่งข้อมูลเข้า Firestore...");
-                    const docRef = await addDoc(collection(db, "user_data_logs"), userTrackingData);
-
-                    logMsg("7. บันทึกข้อมูลสำเร็จ! ID: " + docRef.id);
-                    statusText.style.color = "green";
-                    statusText.innerText = "บันทึกข้อมูลเรียบร้อยแล้ว กัปตัน! เจี๊ยก เจี๊ยก";
-                    
-                    resultBox.style.display = "block";
-                    resultBox.innerHTML = `
-                        <strong>ข้อมูลที่บันทึก:</strong><br>
-                        <b>Email:</b> ${userTrackingData.email}<br>
-                        <b>IP:</b> ${userTrackingData.ip_address}
-                    `;
-                } catch (error) {
-                    logMsg("Firestore Error: " + error.message, true);
-                    statusText.style.color = "red";
-                    statusText.innerText = "บันทึกลง Database ไม่สำเร็จ เจี๊ยก เจี๊ยก";
-                }
-            } else {
-                logMsg("4. สถานะ: รอผู้ใช้กดปุ่มล็อกอิน");
-            }
-        }).catch((error) => {
-            logMsg("Auth Error: " + error.message, true);
-            statusText.style.color = "red";
-            statusText.innerText = "มีปัญหาการเชื่อมต่อบัญชี เจี๊ยก เจี๊ยก";
-        });
-
-        loginBtn.addEventListener("click", () => {
-            logMsg("ผู้ใช้กดปุ่มเข้าสู่ระบบ Google...");
             statusText.style.color = "blue";
-            statusText.innerText = "กำลังพาไปหน้าเข้าสู่ระบบ... เจี๊ยก เจี๊ยก";
-            signInWithRedirect(auth, provider); 
+            statusText.innerText = "กำลังดึงข้อมูลและบันทึกลง Firestore...";
+            resultBox.style.display = "none";
+
+            try {
+                // 1. ตรวจสอบ IP Address
+                const ipAddress = await fetchIPAddress();
+
+                // 2. ตรวจสอบ ระบบปฏิบัติการ Version ข้อมูลสถานะเครื่อง ยี่ห้อรุ่น
+                // navigator.userAgent จะให้ข้อมูลสตริงที่บอกถึง OS, Browser และอุปกรณ์เบื้องต้น
+                const deviceInfo = navigator.userAgent;
+
+                // 3 & 4. ตรวจสอบเบอร์โทรศัพท์ และ ชื่อ account (ข้อจำกัดบนเว็บ)
+                const phoneNumber = "ไม่สามารถดึงได้ (Web Security ป้องกันการดึงเบอร์โทร)";
+                const accountName = "ไม่สามารถดึงได้ (ต้องมีการให้ผู้ใช้ Login)";
+
+                // รวบรวมข้อมูลทั้งหมดเป็น Object เพื่อเตรียมบันทึก
+                const userTrackingData = {
+                    ip_address: ipAddress,
+                    device_info: deviceInfo,
+                    phone_number: phoneNumber,
+                    account_name: accountName,
+                    timestamp: new Date()
+                };
+
+                // คำสั่งบันทึกข้อมูลลง Firestore ในคอลเล็กชันชื่อ "user_data_logs"
+                const docRef = await addDoc(collection(db, "user_data_logs"), userTrackingData);
+
+                // แจ้งเตือนเมื่อสำเร็จและแสดงข้อมูลบนหน้าเว็บ
+                statusText.style.color = "green";
+                statusText.innerText = `บันทึกสำเร็จ! (Document ID: ${docRef.id})`;
+                
+                resultBox.style.display = "block";
+                resultBox.innerHTML = `
+                    <strong>ข้อมูลที่ถูกบันทึก:</strong><br><br>
+                    <b>IP Address:</b> ${userTrackingData.ip_address}<br>
+                    <b>Device Info:</b> ${userTrackingData.device_info}<br>
+                    <b>Phone Number:</b> ${userTrackingData.phone_number}<br>
+                    <b>Account:</b> ${userTrackingData.account_name}
+                `;
+
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาด: ", error);
+                statusText.style.color = "red";
+                statusText.innerText = "เกิดข้อผิดพลาดในการบันทึก กรุณาเปิด Console เพื่อดูรายละเอียดเพิ่มเติม";
+            }
         });
     </script>
 </body>
