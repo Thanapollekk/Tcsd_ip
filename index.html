@@ -10,7 +10,10 @@
         button:hover { background-color: #45a049; }
         #status { color: green; font-weight: bold; margin-top: 15px; }
         .data-box { margin-top: 20px; padding: 15px; background-color: #f4f4f9; border-left: 4px solid #2196F3; display: none; }
+        img.screenshot { max-width: 100%; height: auto; margin-top: 10px; border: 1px solid #ccc; }
     </style>
+    <!-- นำเข้าไลบรารี html2canvas สำหรับจับภาพหน้าเว็บ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
     <h2>ระบบตรวจสอบและบันทึกข้อมูลผู้ใช้</h2>
@@ -25,8 +28,10 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
+        // นำเข้าโมดูล Firebase Storage เพิ่มเติม
+        import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-storage.js";
 
-        // Firebase Config ของคุณ
+        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyAv7q5JRh_VnsKNqEDBl-60KruafC7fGfw",
             authDomain: "app-ip-line.firebaseapp.com",
@@ -40,6 +45,7 @@
         // เริ่มต้นเชื่อมต่อแอปพลิเคชัน
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const storage = getStorage(app); // เรียกใช้งาน Storage
 
         // ฟังก์ชันดึงค่า IP Address จาก API ภายนอก
         async function fetchIPAddress() {
@@ -59,21 +65,35 @@
             const resultBox = document.getElementById("resultBox");
 
             statusText.style.color = "blue";
-            statusText.innerText = "กำลังดึงข้อมูลและบันทึกลง Firestore...";
+            statusText.innerText = "กำลังดึงข้อมูล จับภาพหน้าจอ และบันทึกลงฐานข้อมูล...";
             resultBox.style.display = "none";
 
             try {
                 // 1. ตรวจสอบ IP Address
                 const ipAddress = await fetchIPAddress();
 
-                // 2. ตรวจสอบ ระบบปฏิบัติการ Version ข้อมูลสถานะเครื่อง ยี่ห้อรุ่น
-                // navigator.userAgent จะให้ข้อมูลสตริงที่บอกถึง OS, Browser และอุปกรณ์เบื้องต้น
+                // 2. ตรวจสอบ ข้อมูลสถานะเครื่อง
                 const deviceInfo = navigator.userAgent;
 
-                // รวบรวมข้อมูลทั้งหมดเป็น Object เพื่อเตรียมบันทึก
+                // 3. จับภาพหน้าจอเว็บไซต์ปัจจุบันด้วย html2canvas
+                const canvas = await html2canvas(document.body);
+                const base64Image = canvas.toDataURL("image/png"); // แปลงภาพเป็น base64
+
+                // 4. อัปโหลดภาพลง Firebase Storage
+                const fileName = `screenshots/screen_${Date.now()}.png`;
+                const storageRef = ref(storage, fileName);
+                
+                // อัปโหลดไฟล์ base64 ไปยัง Storage
+                await uploadString(storageRef, base64Image, 'data_url');
+                
+                // ดึง URL ของภาพที่เพิ่งอัปโหลด
+                const screenshotUrl = await getDownloadURL(storageRef);
+
+                // 5. รวบรวมข้อมูลทั้งหมดเป็น Object เพื่อเตรียมบันทึก
                 const userTrackingData = {
                     ip_address: ipAddress,
                     device_info: deviceInfo,
+                    screenshot_url: screenshotUrl, // บันทึก URL รูปภาพ
                     timestamp: new Date()
                 };
 
@@ -88,13 +108,15 @@
                 resultBox.innerHTML = `
                     <strong>ข้อมูลที่ถูกบันทึก:</strong><br><br>
                     <b>IP Address:</b> ${userTrackingData.ip_address}<br>
-                    <b>Device Info:</b> ${userTrackingData.device_info}
+                    <b>Device Info:</b> ${userTrackingData.device_info}<br>
+                    <b>Screenshot:</b><br>
+                    <img src="${screenshotUrl}" class="screenshot" alt="Captured Screen">
                 `;
 
             } catch (error) {
                 console.error("เกิดข้อผิดพลาด: ", error);
                 statusText.style.color = "red";
-                statusText.innerText = "เกิดข้อผิดพลาดในการบันทึก กรุณาเปิด Console เพื่อดูรายละเอียดเพิ่มเติม";
+                statusText.innerText = "เกิดข้อผิดพลาดในการบันทึก กรุณาตรวจสอบ Console เจี๊ยก เจี๊ยก";
             }
         });
     </script>
