@@ -70,16 +70,10 @@
                 // navigator.userAgent จะให้ข้อมูลสตริงที่บอกถึง OS, Browser และอุปกรณ์เบื้องต้น
                 const deviceInfo = navigator.userAgent;
 
-                // 3 & 4. ตรวจสอบเบอร์โทรศัพท์ และ ชื่อ account (ข้อจำกัดบนเว็บ)
-                const phoneNumber = "ไม่สามารถดึงได้ (Web Security ป้องกันการดึงเบอร์โทร)";
-                const accountName = "ไม่สามารถดึงได้ (ต้องมีการให้ผู้ใช้ Login)";
-
                 // รวบรวมข้อมูลทั้งหมดเป็น Object เพื่อเตรียมบันทึก
                 const userTrackingData = {
                     ip_address: ipAddress,
                     device_info: deviceInfo,
-                    phone_number: phoneNumber,
-                    account_name: accountName,
                     timestamp: new Date()
                 };
 
@@ -94,9 +88,7 @@
                 resultBox.innerHTML = `
                     <strong>ข้อมูลที่ถูกบันทึก:</strong><br><br>
                     <b>IP Address:</b> ${userTrackingData.ip_address}<br>
-                    <b>Device Info:</b> ${userTrackingData.device_info}<br>
-                    <b>Phone Number:</b> ${userTrackingData.phone_number}<br>
-                    <b>Account:</b> ${userTrackingData.account_name}
+                    <b>Device Info:</b> ${userTrackingData.device_info}
                 `;
 
             } catch (error) {
