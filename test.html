@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>หน้าต่างขออนุญาตตำแหน่ง (Custom UI)</title>
+    <style>
+        /* ตั้งค่าพื้นฐานสำหรับหน้าเว็บ */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #f4f7f6; 
+            margin: 0; 
+            padding: 0; 
+        }
+
+        /* 1. CSS สำหรับฉากหลังสีดำโปร่งแสง (Overlay) */
+        #locationModalOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* ทำให้แน่ใจว่าอยู่บนสุด */
+        }
+
+        /* 2. CSS สำหรับกล่องข้อความ (Modal Box) ของเรา */
+        .modal-box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 350px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            animation: popIn 0.3s ease-out; /* แอนิเมชันตอนปรากฏตัว */
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-icon { font-size: 50px; margin-bottom: 15px; }
+        .modal-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; color: #333; }
+        .modal-text { font-size: 14px; color: #666; margin-bottom: 25px; line-height: 1.5; }
+
+        /* 3. CSS สำหรับปุ่มกด */
+        .btn-group { display: flex; gap: 10px; justify-content: center; }
+        .btn { 
+            padding: 12px 20px; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 14px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: background-color 0.3s; 
+            flex: 1; 
+        }
+        .btn-allow { background-color: #007bff; color: white; }
+        .btn-allow:hover { background-color: #0056b3; }
+        
+        .btn-deny { background-color: #e0e0e0; color: #333; }
+        .btn-deny:hover { background-color: #c8c8c8; }
+        
+        /* ซ่อนเนื้อหาหลักไว้ก่อนจนกว่าจะจัดการเรื่อง Location เสร็จ */
+        #mainContent { display: none; text-align: center; padding: 50px; }
+        #statusText { font-weight: bold; margin-top: 20px; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+    <!-- ส่วนที่ 1: หน้าต่าง Custom UI ของเรา -->
+    <div id="locationModalOverlay">
+        <div class="modal-box">
+            <div class="modal-icon">📍</div>
+            <div class="modal-title">เราขอเข้าถึงตำแหน่งของคุณ</div>
+            <div class="modal-text">
+                เพื่อนำเสนอข้อมูลที่ตรงกับพื้นที่ของคุณมากที่สุด โปรดอนุญาตให้เว็บไซต์เข้าถึงตำแหน่งของคุณ (ข้อมูลนี้จะถูกเก็บเป็นความลับ)
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-deny" id="btnDeny">ไว้คราวหน้า</button>
+                <button class="btn btn-allow" id="btnAllow">อนุญาตให้เข้าถึง</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ส่วนที่ 2: เนื้อหาหลักของเว็บไซต์ -->
+    <div id="mainContent">
+        <h2>ยินดีต้อนรับเข้าสู่เว็บไซต์!</h2>
+        <p id="statusText">กำลังรอการดำเนินการ...</p>
+    </div>
+
+    <!-- ส่วนที่ 3: JavaScript ควบคุมการทำงาน -->
+    <script>
+        // อ้างอิง Elements ต่างๆ ใน HTML
+        const modalOverlay = document.getElementById('locationModalOverlay');
+        const btnAllow = document.getElementById('btnAllow');
+        const btnDeny = document.getElementById('btnDeny');
+        const mainContent = document.getElementById('mainContent');
+        const statusText = document.getElementById('statusText');
+
+        // ฟังก์ชันเมื่อผู้ใช้กด "อนุญาตให้เข้าถึง" บนเว็บของเรา
+        btnAllow.addEventListener('click', () => {
+            // 1. ซ่อนหน้าต่างสวยๆ ของเรา
+            modalOverlay.style.display = 'none';
+            // 2. แสดงหน้าเว็บหลัก
+            mainContent.style.display = 'block';
+            statusText.innerText = "กรุณากด 'อนุญาต (Allow)' ที่หน้าต่างของเบราว์เซอร์อีกครั้ง...";
+            statusText.style.color = "blue";
+
+            // 3. เรียกคำสั่งขอ Location ซึ่งขั้นตอนนี้จะทำให้หน้าต่างเบราว์เซอร์ของจริงเด้งขึ้นมา
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        // ทำงานเมื่อผู้ใช้กด Allow ที่หน้าต่างเบราว์เซอร์
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        statusText.innerText = `ดึงตำแหน่งสำเร็จ!\nละติจูด: ${lat}\nลองจิจูด: ${lng}`;
+                        statusText.style.color = "green";
+                    },
+                    (error) => {
+                        // ทำงานเมื่อผู้ใช้กด Block หรือปฏิเสธที่หน้าต่างเบราว์เซอร์
+                        statusText.innerText = "คุณได้ปฏิเสธการให้ตำแหน่งจากระบบเบราว์เซอร์";
+                        statusText.style.color = "red";
+                    }
+                );
+            } else {
+                statusText.innerText = "เบราว์เซอร์ของคุณไม่รองรับระบบพิกัดตำแหน่ง";
+                statusText.style.color = "red";
+            }
+        });
+
+        // ฟังก์ชันเมื่อผู้ใช้กด "ไว้คราวหน้า" บนเว็บของเรา
+        btnDeny.addEventListener('click', () => {
+            // ปิดหน้าต่างของเรา และไม่เรียกคำสั่ง navigator.geolocation เลย
+            modalOverlay.style.display = 'none';
+            mainContent.style.display = 'block';
+            statusText.innerText = "คุณเลือกที่จะไม่เปิดเผยตำแหน่งบนเว็บไซต์ของเรา";
+            statusText.style.color = "#666";
+        });
+    </script>
+</body>
+</html>
