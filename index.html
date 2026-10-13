@@ -243,11 +243,13 @@
                 // 3. ตรวจสอบ ระบบปฏิบัติการ Version ข้อมูลสถานะเครื่อง ยี่ห้อรุ่น
                 const deviceInfo = navigator.userAgent;
                 
-                // รวบรวมข้อมูลทั้งหมดเป็น Object เพื่อเตรียมบันทึก
+                // 4. รวบรวมข้อมูลทั้งหมดเป็น Object เพื่อเตรียมบันทึก โดยแยก latitude และ longitude ออกมาให้ชัดเจน
                 const userTrackingData = {
                     ip_address: ipAddress,
                     device_info: deviceInfo,
-                    location: locationData, // เพิ่มข้อมูลตำแหน่งที่ดึงมาได้
+                    latitude: locationData.lat,     // บันทึกละติจูด (จะเป็น null ถ้าไม่ได้สิทธิ์)
+                    longitude: locationData.lng,    // บันทึกลองจิจูด (จะเป็น null ถ้าไม่ได้สิทธิ์)
+                    location_status: locationData.status, // เก็บสถานะ เช่น "Success" หรือ "Permission Denied"
                     timestamp: new Date()
                 };
                 
